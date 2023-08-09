@@ -7,10 +7,10 @@ export default function Layout({ children }) {
     <>
       <nav className="flex items-center space-x-6 bg-slate-800 px-10 py-6 text-white">
         <div className="rounded-lg bg-slate-700 px-4 py-1">{appName}</div>
-        <Link href="/" className="hover:underline">
+        <Link href="/" isStatic className="hover:underline">
           Home
         </Link>
-        <Link href="/users" className="hover:underline">
+        <Link href="/users" isStatic className="hover:underline">
           Users
         </Link>
         <Link href="/article" className="hover:underline">

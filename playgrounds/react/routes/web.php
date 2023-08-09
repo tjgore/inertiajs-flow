@@ -17,9 +17,10 @@ use Illuminate\Support\Str;
 
 $isStatic = Str::contains(request()->path(), '__static__');
 
-Route::get('/', function () {
-    return inertia('Home');
-});
+Route::get('/{home}', function () use ($isStatic) {
+    return inertia('Home', ['static' => $isStatic]);
+})
+->where('home', '(|__static__)')->middleware('page-cache');
 
 Route::get('/{users}', function () use ($isStatic) {
     return inertia('Users', [
