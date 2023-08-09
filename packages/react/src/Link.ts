@@ -30,7 +30,8 @@ interface BaseInertiaLinkProps {
   onCancel?: () => void
   onSuccess?: () => void
   onError?: () => void
-  queryStringArrayFormat?: 'indices' | 'brackets'
+  queryStringArrayFormat?: 'indices' | 'brackets',
+  isStatic?: boolean
 }
 
 export type InertiaLinkProps = BaseInertiaLinkProps &
@@ -62,6 +63,7 @@ const Link: InertiaLink = forwardRef<unknown, InertiaLinkProps>(
       onCancel = noop,
       onSuccess = noop,
       onError = noop,
+      isStatic = false,
       ...props
     },
     ref,
@@ -89,6 +91,7 @@ const Link: InertiaLink = forwardRef<unknown, InertiaLinkProps>(
             onCancel,
             onSuccess,
             onError,
+            isStatic,
           })
         }
       },
@@ -110,6 +113,7 @@ const Link: InertiaLink = forwardRef<unknown, InertiaLinkProps>(
         onCancel,
         onSuccess,
         onError,
+        isStatic,
       ],
     )
 

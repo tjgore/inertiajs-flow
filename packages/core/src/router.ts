@@ -272,6 +272,7 @@ export class Router {
       onSuccess = () => {},
       onError = () => {},
       queryStringArrayFormat = 'brackets',
+      isStatic = false,
     }: VisitOptions = {},
   ): void {
     let url = typeof href === 'string' ? hrefToUrl(href) : href
@@ -326,6 +327,7 @@ export class Router {
       onError,
       queryStringArrayFormat,
       cancelToken: new AbortController(),
+      isStatic,
     }
 
     onCancelToken({
@@ -339,9 +341,15 @@ export class Router {
     fireStartEvent(visit)
     onStart(visit)
 
+    let browserUrl = urlWithoutHash(url).href;
+
+    if (isStatic) {
+      browserUrl = browserUrl ? `${urlWithoutHash(url).href}__static__` : 'home__static__'
+    }
+
     Axios({
       method,
-      url: urlWithoutHash(url).href,
+      url: browserUrl,
       data: method === 'get' ? {} : data,
       params: method === 'get' ? data : {},
       signal: this.activeVisit.cancelToken.signal,
@@ -368,7 +376,8 @@ export class Router {
       },
     })
       .then((response) => {
-        if (!this.isInertiaResponse(response)) {
+        const isStaticResponse = response.data.props.static;
+        if (!this.isInertiaResponse(response) && !isStatic) {
           return Promise.reject({ response })
         }
 
@@ -382,11 +391,16 @@ export class Router {
           pageResponse.rememberedState = window.history.state.rememberedState
         }
         const requestUrl = url
-        const responseUrl = hrefToUrl(pageResponse.url)
+        const responseUrl = isStaticResponse ? url :hrefToUrl(pageResponse.url)
         if (requestUrl.hash && !responseUrl.hash && urlWithoutHash(requestUrl).href === responseUrl.href) {
           responseUrl.hash = requestUrl.hash
           pageResponse.url = responseUrl.href
         }
+
+        if(isStaticResponse) {
+          pageResponse.url = url.toString();
+        }
+
         return this.setPage(pageResponse, { visitId, replace, preserveScroll, preserveState })
       })
       .then(() => {
