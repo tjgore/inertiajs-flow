@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -13,12 +15,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+$isStatic = Str::contains(request()->path(), '__static__');
+
 Route::get('/', function () {
     return inertia('Home');
 });
 
-Route::get('/users', function () {
+Route::get('/{users}', function () use ($isStatic) {
     return inertia('Users', [
+        'static' => $isStatic,
         'users' => [
             [
                 'id' => 1,
@@ -62,7 +67,7 @@ Route::get('/users', function () {
             ],
         ],
     ]);
-});
+})->where('users', '(users|users__static__)')->middleware('page-cache');
 
 Route::get('/article', function () {
     return inertia('Article');
