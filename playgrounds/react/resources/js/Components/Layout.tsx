@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react'
+import { Link, usePage, router } from '@inertiajs/react'
 
 export default function Layout({ children }) {
   const { appName } = usePage<{ appName: string }>().props
@@ -16,6 +16,9 @@ export default function Layout({ children }) {
         <Link href="/article" className="hover:underline">
           Article
         </Link>
+        <button type="button" onClick={() => router.visitCache('/form')} onMouseEnter={() => router.prefetch('/form')} className="hover:underline">
+          Form
+        </button>
         <Link href="/form" className="hover:underline">
           Form
         </Link>

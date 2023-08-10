@@ -1,35 +1,36 @@
-import { AxiosResponse, default as Axios } from 'axios'
+import { default as Axios,AxiosResponse } from 'axios'
+import CacheManager, { PrefetchOptions } from './cache'
 import debounce from './debounce'
 import {
-  fireBeforeEvent,
-  fireErrorEvent,
-  fireExceptionEvent,
-  fireFinishEvent,
-  fireInvalidEvent,
-  fireNavigateEvent,
-  fireProgressEvent,
-  fireStartEvent,
-  fireSuccessEvent,
+fireBeforeEvent,
+fireErrorEvent,
+fireExceptionEvent,
+fireFinishEvent,
+fireInvalidEvent,
+fireNavigateEvent,
+fireProgressEvent,
+fireStartEvent,
+fireSuccessEvent,
 } from './events'
 import { hasFiles } from './files'
 import { objectToFormData } from './formData'
 import modal from './modal'
 import {
-  ActiveVisit,
-  GlobalEvent,
-  GlobalEventNames,
-  GlobalEventResult,
-  LocationVisit,
-  Page,
-  PageHandler,
-  PageResolver,
-  PendingVisit,
-  PreserveStateOption,
-  RequestPayload,
-  VisitId,
-  VisitOptions,
+ActiveVisit,
+GlobalEvent,
+GlobalEventNames,
+GlobalEventResult,
+LocationVisit,
+Page,
+PageHandler,
+PageResolver,
+PendingVisit,
+PreserveStateOption,
+RequestPayload,
+VisitId,
+VisitOptions,
 } from './types'
-import { hrefToUrl, mergeDataIntoQueryString, urlWithoutHash } from './url'
+import { hrefToUrl,mergeDataIntoQueryString,urlWithoutHash } from './url'
 
 const isServer = typeof window === 'undefined'
 
@@ -40,6 +41,7 @@ export class Router {
   protected navigationType?: string
   protected activeVisit?: ActiveVisit
   protected visitId: VisitId = null
+  protected Cache = CacheManager.create()
 
   public init({
     initialPage,
@@ -50,6 +52,7 @@ export class Router {
     resolveComponent: PageResolver
     swapComponent: PageHandler
   }): void {
+    this.Cache.version = initialPage.version
     this.page = initialPage
     this.resolveComponent = resolveComponent
     this.swapComponent = swapComponent
@@ -251,6 +254,20 @@ export class Router {
     }
   }
 
+  public prefetch(href: string, options: PrefetchOptions = {}) {
+    this.Cache.prefetch(href, options)
+  }
+
+  public visitCache(href: string) {
+    if (!this.Cache.has(href)) {
+      setTimeout(() => {
+        this.visitCache(href)
+      }, 50);
+    } else {
+      this.visit(href)
+    }
+  }
+
   public visit(
     href: string | URL,
     {
@@ -341,112 +358,152 @@ export class Router {
     fireStartEvent(visit)
     onStart(visit)
 
-    let browserUrl = urlWithoutHash(url).href;
+    let browserUrl = urlWithoutHash(url).href
 
-    if (isStatic) {
-      browserUrl = browserUrl ? `${urlWithoutHash(url).href}__static__` : 'home__static__'
-    }
+    const urlWithHash = url.href.split(url.host)[1];
 
-    Axios({
-      method,
-      url: browserUrl,
-      data: method === 'get' ? {} : data,
-      params: method === 'get' ? data : {},
-      signal: this.activeVisit.cancelToken.signal,
-      headers: {
-        ...headers,
-        Accept: 'text/html, application/xhtml+xml',
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-Inertia': true,
-        ...(only.length
-          ? {
-              'X-Inertia-Partial-Component': this.page.component,
-              'X-Inertia-Partial-Data': only.join(','),
-            }
-          : {}),
-        ...(errorBag && errorBag.length ? { 'X-Inertia-Error-Bag': errorBag } : {}),
-        ...(this.page.version ? { 'X-Inertia-Version': this.page.version } : {}),
-      },
-      onUploadProgress: (progress) => {
-        if (data instanceof FormData) {
-          progress.percentage = progress.progress ? Math.round(progress.progress * 100) : 0
-          fireProgressEvent(progress)
-          onProgress(progress)
-        }
-      },
-    })
-      .then((response) => {
-        const isStaticResponse = response.data.props.static;
-        if (!this.isInertiaResponse(response) && !isStatic) {
-          return Promise.reject({ response })
-        }
+    let cachedPage = this.Cache.get(urlWithHash);
 
-        const pageResponse: Page = response.data
-        if (only.length && pageResponse.component === this.page.component) {
-          pageResponse.props = { ...this.page.props, ...pageResponse.props }
-        }
-        preserveScroll = this.resolvePreserveOption(preserveScroll, pageResponse) as boolean
-        preserveState = this.resolvePreserveOption(preserveState, pageResponse)
-        if (preserveState && window.history.state?.rememberedState && pageResponse.component === this.page.component) {
-          pageResponse.rememberedState = window.history.state.rememberedState
-        }
-        const requestUrl = url
-        const responseUrl = isStaticResponse ? url :hrefToUrl(pageResponse.url)
-        if (requestUrl.hash && !responseUrl.hash && urlWithoutHash(requestUrl).href === responseUrl.href) {
-          responseUrl.hash = requestUrl.hash
-          pageResponse.url = responseUrl.href
-        }
+    if (cachedPage) {
+      preserveScroll = this.resolvePreserveOption(preserveScroll, cachedPage.pageResponse) as boolean
+      preserveState = this.resolvePreserveOption(preserveState, cachedPage.pageResponse)
+      if (preserveState && window.history.state?.rememberedState && cachedPage.pageResponse.component === this.page.component) {
+        cachedPage.pageResponse.rememberedState = window.history.state.rememberedState
+      }
+      const requestUrl = url
+      const responseUrl = hrefToUrl(cachedPage.pageResponse.url);
+      if (requestUrl.hash && !responseUrl.hash && urlWithoutHash(requestUrl).href === responseUrl.href) {
+        responseUrl.hash = requestUrl.hash
+        cachedPage.pageResponse.url = responseUrl.href
+      }
 
-        if(isStaticResponse) {
-          pageResponse.url = url.toString();
-        }
+      this.Cache.set(urlWithHash, {
+        pageResponse: cachedPage.pageResponse,
+        preserveScroll: preserveScroll,
+        preserveState: preserveState,
+        expiresAt: cachedPage.expiresAt,          
+      });
 
-        return this.setPage(pageResponse, { visitId, replace, preserveScroll, preserveState })
-      })
-      .then(() => {
-        const errors = this.page.props.errors || {}
-        if (Object.keys(errors).length > 0) {
-          const scopedErrors = errorBag ? (errors[errorBag] ? errors[errorBag] : {}) : errors
-          fireErrorEvent(scopedErrors)
-          return onError(scopedErrors)
-        }
+      this.setPage(cachedPage.pageResponse, { visitId, replace, preserveScroll, preserveState }).then(() => {
         fireSuccessEvent(this.page)
-        return onSuccess(this.page)
-      })
-      .catch((error) => {
-        if (this.isInertiaResponse(error.response)) {
-          return this.setPage(error.response.data, { visitId })
-        } else if (this.isLocationVisitResponse(error.response)) {
-          const locationUrl = hrefToUrl(error.response.headers['x-inertia-location'])
-          const requestUrl = url
-          if (requestUrl.hash && !locationUrl.hash && urlWithoutHash(requestUrl).href === locationUrl.href) {
-            locationUrl.hash = requestUrl.hash
-          }
-          this.locationVisit(locationUrl, preserveScroll === true)
-        } else if (error.response) {
-          if (fireInvalidEvent(error.response)) {
-            modal.show(error.response.data)
-          }
-        } else {
-          return Promise.reject(error)
-        }
-      })
-      .then(() => {
+        onSuccess(this.page)
+
         if (this.activeVisit) {
           this.finishVisit(this.activeVisit)
         }
       })
-      .catch((error) => {
-        if (!Axios.isCancel(error)) {
-          const throwException = fireExceptionEvent(error)
+    }
+
+    if (!cachedPage) {
+      browserUrl = isStatic ? `${urlWithoutHash(url).href}__static__` : browserUrl
+      Axios({
+        method,
+        url: browserUrl,
+        data: method === 'get' ? {} : data,
+        params: method === 'get' ? data : {},
+        signal: this.activeVisit.cancelToken.signal,
+        headers: {
+          ...headers,
+          Accept: 'text/html, application/xhtml+xml',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-Inertia': true,
+          ...(only.length
+            ? {
+                'X-Inertia-Partial-Component': this.page.component,
+                'X-Inertia-Partial-Data': only.join(','),
+              }
+            : {}),
+          ...(errorBag && errorBag.length ? { 'X-Inertia-Error-Bag': errorBag } : {}),
+          ...(this.page.version ? { 'X-Inertia-Version': this.page.version } : {}),
+        },
+        onUploadProgress: (progress) => {
+          if (data instanceof FormData) {
+            progress.percentage = progress.progress ? Math.round(progress.progress * 100) : 0
+            fireProgressEvent(progress)
+            onProgress(progress)
+          }
+        },
+      })
+        .then((response) => {
+          const isStaticResponse = response.data.props.static;
+          if (!this.isInertiaResponse(response) && !isStatic) {
+            return Promise.reject({ response })
+          }
+
+          const pageResponse: Page = response.data
+          if (only.length && pageResponse.component === this.page.component) {
+            pageResponse.props = { ...this.page.props, ...pageResponse.props }
+          }
+          preserveScroll = this.resolvePreserveOption(preserveScroll, pageResponse) as boolean
+          preserveState = this.resolvePreserveOption(preserveState, pageResponse)
+          if (preserveState && window.history.state?.rememberedState && pageResponse.component === this.page.component) {
+            pageResponse.rememberedState = window.history.state.rememberedState
+          }
+          const requestUrl = url
+          const responseUrl = isStaticResponse ? url :hrefToUrl(pageResponse.url)
+          if (requestUrl.hash && !responseUrl.hash && urlWithoutHash(requestUrl).href === responseUrl.href) {
+            responseUrl.hash = requestUrl.hash
+            pageResponse.url = responseUrl.href
+          }
+
+          if(isStaticResponse) {
+            pageResponse.url = url.toString();
+          }
+          
+          this.Cache.setWithExpiration(urlWithHash, {
+            pageResponse: pageResponse,
+            preserveScroll: preserveScroll,
+            preserveState: preserveState,
+            expiresAt: new Date(),
+          });
+
+          return this.setPage(pageResponse, { visitId, replace, preserveScroll, preserveState })
+        })
+        .then(() => {
+          const errors = this.page.props.errors || {}
+          if (Object.keys(errors).length > 0) {
+            const scopedErrors = errorBag ? (errors[errorBag] ? errors[errorBag] : {}) : errors
+            fireErrorEvent(scopedErrors)
+            return onError(scopedErrors)
+          }
+          fireSuccessEvent(this.page)
+          return onSuccess(this.page)
+        })
+        .catch((error) => {
+          if (this.isInertiaResponse(error.response)) {
+            return this.setPage(error.response.data, { visitId })
+          } else if (this.isLocationVisitResponse(error.response)) {
+            const locationUrl = hrefToUrl(error.response.headers['x-inertia-location'])
+            const requestUrl = url
+            if (requestUrl.hash && !locationUrl.hash && urlWithoutHash(requestUrl).href === locationUrl.href) {
+              locationUrl.hash = requestUrl.hash
+            }
+            this.locationVisit(locationUrl, preserveScroll === true)
+          } else if (error.response) {
+            if (fireInvalidEvent(error.response)) {
+              modal.show(error.response.data)
+            }
+          } else {
+            return Promise.reject(error)
+          }
+        })
+        .then(() => {
           if (this.activeVisit) {
             this.finishVisit(this.activeVisit)
           }
-          if (throwException) {
-            return Promise.reject(error)
+        })
+        .catch((error) => {
+          if (!Axios.isCancel(error)) {
+            const throwException = fireExceptionEvent(error)
+            if (this.activeVisit) {
+              this.finishVisit(this.activeVisit)
+            }
+            if (throwException) {
+              return Promise.reject(error)
+            }
           }
-        }
-      })
+        })
+    }
   }
 
   protected setPage(

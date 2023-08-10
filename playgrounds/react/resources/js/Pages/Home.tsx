@@ -1,7 +1,19 @@
-import { Head, Link } from '@inertiajs/react'
+import { Head, Link, router, cacheManager } from '@inertiajs/react'
 import Layout from '../Components/Layout'
+import { useEffect } from 'react'
 
 const Home = () => {
+
+  useEffect(() => {
+    cacheManager.prefetch('/article', {
+      durationInMinutes: 10
+    })
+    cacheManager.prefetch('/', {
+      isStatic: true
+    })
+    cacheManager.prefetch('/users')
+  }, [])
+
   return (
     <>
       <Head title="Home" />
