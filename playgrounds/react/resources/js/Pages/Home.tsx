@@ -1,13 +1,13 @@
-import { Head, Link, router, cacheManager } from '@inertiajs/react'
+import { Head, Link, router } from '@inertiajs/react'
 import Layout from '../Components/Layout'
 import { useEffect } from 'react'
 
 const Home = () => {
 
   useEffect(() => {
-    cacheManager.prefetchAll([
-      {href: '/article', options: { durationInMinutes: 10 }},
-      {href: '/', options: { isStatic: true, durationInMinutes: 10 }},
+    router.cache().prefetchAll([
+      {href: '/article', options: { durationInMinutes: 1 }},
+      {href: '/', options: { isStatic: true, durationInMinutes: 2 }},
       {href: '/users', options: { isStatic: true, durationInMinutes: 10 }}
     ])
   }, [])

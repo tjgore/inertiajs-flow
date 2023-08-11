@@ -24,6 +24,10 @@ export type PrefetchOptions = {
   visit?: () => void,
 }
 
+export const fireCacheUpdatedEvent = (pages: PageCache) => {
+  return document.dispatchEvent(new CustomEvent(`cache:updated`, { detail: { pages } }))
+}
+
 export default class CacheManager {
   public on: boolean = true
   public version: string | null = null
@@ -64,6 +68,7 @@ export default class CacheManager {
     }
 
     this.pages[key] = value
+    fireCacheUpdatedEvent(this.pages)
   }
 
   public setWithExpiration(key: string, value: PageCache[keyof PageCache]) {
@@ -105,10 +110,12 @@ export default class CacheManager {
     if (this.has(key)) {
       delete this.pages[key]
     }
+    fireCacheUpdatedEvent(this.pages)
   }
 
   public removeAll() {
     this.pages = {}
+    fireCacheUpdatedEvent(this.pages)
   }
 
   public getTimestamp(minutes: number = 1) {

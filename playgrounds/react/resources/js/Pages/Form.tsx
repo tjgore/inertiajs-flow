@@ -1,4 +1,4 @@
-import { Head, useForm, cacheManager } from '@inertiajs/react'
+import { Head, useForm, router } from '@inertiajs/react'
 import Layout from '../Components/Layout'
 
 const Form = () => {
@@ -13,7 +13,7 @@ const Form = () => {
     form.post('/user')
   }
 
-  cacheManager.remove('/users')
+  router.cache().remove('/users')
 
   return (
     <>

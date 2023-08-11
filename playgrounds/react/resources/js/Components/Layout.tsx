@@ -1,4 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react'
+import CacheList from './CacheList'
 
 export default function Layout({ children }) {
   const { appName } = usePage<{ appName: string }>().props
@@ -16,17 +17,23 @@ export default function Layout({ children }) {
         <Link href="/article" className="hover:underline">
           Article
         </Link>
-        <button type="button" onClick={() => router.visitCache('/form')} onMouseEnter={() => router.prefetch('/form')} className="hover:underline">
-          Form
-        </button>
+        <Link href="/form" onMouseEnter={() => router.cache().prefetch('/form')} className="hover:underline">
+          Hover Prefetch
+        </Link>
         <Link href="/form" className="hover:underline">
           Form
         </Link>
         <Link href="/logout" method="post" as="button" type="button" className="hover:underline">
           Logout
         </Link>
+        <button type="button" onClick={() => {router.cache().removeAll()}}>Clear Cache</button>
       </nav>
-      <main className="px-10 py-8">{children}</main>
+
+      
+      <main className="px-10 py-8">
+        <CacheList />
+        <div>{children}</div>
+      </main>
     </>
   )
 }

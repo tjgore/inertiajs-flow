@@ -1,5 +1,5 @@
 import { default as Axios,AxiosResponse } from 'axios'
-import CacheManager, { PrefetchOptions } from './cache'
+import CacheManager from './cache'
 import debounce from './debounce'
 import {
 fireBeforeEvent,
@@ -256,15 +256,17 @@ export class Router {
     }
   }
 
-  public prefetch(href: string, options: PrefetchOptions = {}) {
-    this.Cache.prefetch(href, options)
+  public cache() {
+    return this.Cache
   }
 
+  // the visit method handles this as well
+  // this is useful for manually visiting a page without the Link component
   public visitCache(href: string) {
     if (!this.Cache.has(href)) {
       setTimeout(() => {
         this.visitCache(href)
-      }, 50);
+      }, 100);
     } else {
       this.visit(href)
     }
