@@ -10,4 +10,8 @@ createInertiaApp({
     hydrateRoot(el, <App {...props} />)
     // createRoot(el).render(<App {...props} />)
   },
+  progress: {
+    delay: 100,
+    showSpinner: true,
+  }
 })

@@ -175,7 +175,8 @@ export type VisitOptions = Partial<
     onCancel: GlobalEventCallback<'cancel'>
     onSuccess: GlobalEventCallback<'success'>
     onError: GlobalEventCallback<'error'>
-    isStatic: boolean
+    isStatic: boolean,
+    inFlight?: boolean,
   }
 >
 

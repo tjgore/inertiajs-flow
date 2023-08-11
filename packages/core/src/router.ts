@@ -42,6 +42,8 @@ export class Router {
   protected activeVisit?: ActiveVisit
   protected visitId: VisitId = null
   protected Cache = CacheManager.create()
+  protected pendingTimeout: any = null
+  protected activePrefetchId: string = ''
 
   public init({
     initialPage,
@@ -290,6 +292,7 @@ export class Router {
       onError = () => {},
       queryStringArrayFormat = 'brackets',
       isStatic = false,
+      inFlight = false,
     }: VisitOptions = {},
   ): void {
     let url = typeof href === 'string' ? hrefToUrl(href) : href
@@ -345,6 +348,7 @@ export class Router {
       queryStringArrayFormat,
       cancelToken: new AbortController(),
       isStatic,
+      inFlight,
     }
 
     onCancelToken({
@@ -355,16 +359,38 @@ export class Router {
       },
     })
 
-    fireStartEvent(visit)
-    onStart(visit)
-
     let browserUrl = urlWithoutHash(url).href
-
     const urlWithHash = url.href.split(url.host)[1];
+
+    // If a router visit comes in for the same url that is in active prefetch, clear it
+    // In this case the user clicked the same link multiple times while timeout is working on getting the cache version
+    if (this.Cache.isPending(urlWithHash) && !inFlight && this.activePrefetchId === urlWithHash) {
+      return
+    }
+
+    // If a different router visit comes in and it is not pending cache but we are trying to process a previous click with timeout, clear any set timeout and proceed with current visit
+    if (!this.Cache.isPending(urlWithHash) && this.pendingTimeout) {
+      clearTimeout(this.pendingTimeout)
+      this.pendingTimeout = null
+      this.activePrefetchId = ''
+    }
 
     let cachedPage = this.Cache.get(urlWithHash);
 
+    fireStartEvent(visit)
+    onStart(visit) 
+
     if (cachedPage) {
+      if (cachedPage.pending) {
+        this.activePrefetchId = urlWithHash
+        this.pendingTimeout = setTimeout(() => {
+          this.visit(urlWithHash, { inFlight: true })
+        }, 1000);
+        return
+      } else {
+        this.activePrefetchId = ''
+      }
+
       preserveScroll = this.resolvePreserveOption(preserveScroll, cachedPage.pageResponse) as boolean
       preserveState = this.resolvePreserveOption(preserveState, cachedPage.pageResponse)
       if (preserveState && window.history.state?.rememberedState && cachedPage.pageResponse.component === this.page.component) {

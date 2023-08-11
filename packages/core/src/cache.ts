@@ -5,15 +5,18 @@ PreserveStateOption,
 import { hrefToUrl, urlWithoutHash } from './url'
 import { default as Axios } from 'axios'
 
-export type PageCache = { [key: string]: {
+type CacheItem = {
   pageResponse: Page,
   visitId?: unknown,
   replace?: boolean,
   preserveScroll?: PreserveStateOption,
   preserveState?: PreserveStateOption,
+  pending?: boolean,
   expiresAt: Date,
   updatedAt?: Date,
-} }  
+}
+
+export type PageCache = { [key: string]: CacheItem }
 
 export type PrefetchOptions = {
   durationInMinutes?: number,
@@ -72,27 +75,31 @@ export default class CacheManager {
   }
 
   public get(key: string) {
-    if (!this.shouldCache(key)) {
+    if (!this.shouldCache(key) || !this.has(key)) {
       return undefined
     }
 
     const current = new Date()
 
-    if (this.has(key) && current.getTime() > this.pages[key].expiresAt.getTime()) {
+    if (current.getTime() > this.pages[key].expiresAt.getTime() && !this.isPending(key)) {
       delete this.pages[key]
       return undefined
     }
 
-    if (this.has(key)) {
-      this.pages[key].updatedAt = current
+    return this.pages[key] = {
+      ...this.pages[key],
+      updatedAt: current,
     }
-
-    return this.pages[key]
   }
 
   public has(key: string) {
     return this.pages[key] !== undefined
   }
+
+  public isPending(key: string) {
+    return this.has(key) && this.pages[key].pending
+  }
+
 
   public remove(key: string) {
     if (this.has(key)) {
@@ -129,30 +136,48 @@ export default class CacheManager {
     return this.on && this.ignoredUrl.indexOf(url) === -1
   }
 
+  protected createPendingCachePage(url: string) {
+    this.set(url, {
+      pageResponse: {
+        component: '',
+        props: { loading: null, errors: {} },
+        url: '',
+        version:  null,
+        scrollRegions: [],
+        rememberedState: {},
+      },
+      pending: true,
+      expiresAt: this.getTimestamp(),
+    });
+  }
+
   public prefetch(href: string, options: PrefetchOptions = {}): Promise<void> | void {
     const { durationInMinutes = 1, isStatic = false } = options
-    // retry prefetching if version is not set yet
-    if (!this.version) {
-      console.log('Missed version')
-      if (this.prefetchRetries <= this.totalPrefetchRetries) {
-        this.prefetchRetries++
-        setTimeout(() => {
-          this.prefetch(href, options)
-        }, 700);
-      }
-      return;
-    }
 
     const url = typeof href === 'string' ? hrefToUrl(href) : href
     const urlWithHash = url.href.split(url.host)[1]
+
+    let browserUrl = urlWithoutHash(url).href
+    browserUrl = isStatic ? `${browserUrl}__static__` : browserUrl
 
     // Page already exists in cache
     if (this.get(urlWithHash)) {
       return;
     }
 
-    let browserUrl = urlWithoutHash(url).href
-    browserUrl = isStatic ? `${browserUrl}__static__` : browserUrl
+    // retry prefetching if version is not set yet
+    if (!this.version) {
+      //console.log('Missed version')
+      if (this.prefetchRetries <= this.totalPrefetchRetries) {
+        this.prefetchRetries++
+        setTimeout(() => {
+          this.prefetch(href, options)
+        }, 100);
+      }
+      return;
+    }
+
+    this.createPendingCachePage(urlWithHash)
 
     return Axios({
       method: 'get',
@@ -186,12 +211,19 @@ export default class CacheManager {
       this.set(urlWithHash, {
         pageResponse: pageResponse,
         expiresAt: this.getTimestamp(durationInMinutes),
+        pending: false,
       });
 
       return Promise.resolve()
     })
     .catch(() => {
       console.log('Prefetch failed')
+    })
+  }
+
+  public prefetchAll(paths: {href: string, options: PrefetchOptions }[]) {
+    paths.forEach(({href, options}) => {
+      this.prefetch(href, options)
     })
   }
 }

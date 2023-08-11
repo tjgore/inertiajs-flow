@@ -23,6 +23,7 @@ Route::get('/{home}', function () use ($isStatic) {
 ->where('home', '(|__static__)')->middleware('page-cache');
 
 Route::get('/{users}', function () use ($isStatic) {
+    sleep(10);
     return inertia('Users', [
         'static' => $isStatic,
         'users' => [

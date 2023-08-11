@@ -5,13 +5,11 @@ import { useEffect } from 'react'
 const Home = () => {
 
   useEffect(() => {
-    cacheManager.prefetch('/article', {
-      durationInMinutes: 10
-    })
-    cacheManager.prefetch('/', {
-      isStatic: true
-    })
-    cacheManager.prefetch('/users')
+    cacheManager.prefetchAll([
+      {href: '/article', options: { durationInMinutes: 10 }},
+      {href: '/', options: { isStatic: true, durationInMinutes: 10 }},
+      {href: '/users', options: { isStatic: true, durationInMinutes: 10 }}
+    ])
   }, [])
 
   return (
