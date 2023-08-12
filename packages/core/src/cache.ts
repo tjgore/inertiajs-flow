@@ -225,6 +225,7 @@ export default class CacheManager {
     })
     .catch(() => {
       console.log('Prefetch failed')
+      this.remove(urlWithHash)
     })
   }
 
