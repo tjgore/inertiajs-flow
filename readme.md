@@ -1,5 +1,6 @@
 ## About
-This repo is an experimental project to make inertia js work similar to nextjs.
+
+This repo is an **EXPERIMENTAL** project for personal use to make inertia js work similar to nextjs.
 
 Next js uses cache to make page links and transitions appear faster. 
 

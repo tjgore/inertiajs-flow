@@ -33,7 +33,7 @@ export default class CacheManager {
   public version: string | null = null
   private static instance: CacheManager
   protected pages: PageCache = {}
-  protected sizeLimit: number = 20
+  protected sizeLimit: number = 30
   protected ignoredUrl: string[] = []
   protected prefetchRetries: number = 0
   protected totalPrefetchRetries: number = 3
