@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/core'
+import { router } from '../../core/dist/index.esm.js'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 
 export default function useRemember<State>(

@@ -6,7 +6,7 @@ import {
   Progress,
   router,
   shouldIntercept,
-} from '@inertiajs/core'
+} from '../../core/dist/index.esm.js'
 import { createElement, forwardRef, useCallback } from 'react'
 
 const noop = () => undefined

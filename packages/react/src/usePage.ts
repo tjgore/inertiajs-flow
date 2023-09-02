@@ -1,4 +1,4 @@
-import { Page, PageProps } from '@inertiajs/core'
+import { Page, PageProps } from '../../core/dist/index.esm.js'
 import { useContext } from 'react'
 import PageContext from './PageContext'
 

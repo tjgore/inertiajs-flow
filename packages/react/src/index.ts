@@ -1,5 +1,4 @@
-import { router as Router, cacheManager as CacheManager } from '@inertiajs/core'
-
+import { router as Router, cacheManager as CacheManager } from '../../core/dist/index.esm.js'
 export const router = Router
 export const cacheManager = CacheManager
 export { default as createInertiaApp } from './createInertiaApp'

@@ -1,4 +1,4 @@
-import { createHeadManager, router } from '@inertiajs/core'
+import { createHeadManager, router } from '../../core/dist/index.esm.js'
 import { createElement, useEffect, useMemo, useState } from 'react'
 import HeadContext from './HeadContext'
 import PageContext from './PageContext'

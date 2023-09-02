@@ -1,4 +1,4 @@
-import { Page, PageProps, PageResolver, setupProgress } from '@inertiajs/core'
+import { Page, PageProps, PageResolver, setupProgress } from '../../core/dist/index.esm.js'
 import { ComponentType, createElement, FunctionComponent, Key, ReactElement, ReactNode } from 'react'
 import { renderToString } from 'react-dom/server'
 import App from './App'
@@ -77,7 +77,7 @@ export default async function createInertiaApp<SharedProps extends PageProps = P
   const isServer = typeof window === 'undefined'
   const el = isServer ? null : document.getElementById(id)
   const initialPage = page || JSON.parse(el.dataset.page)
-  // @ts-expect-error
+
   const resolveComponent = (name) => Promise.resolve(resolve(name)).then((module) => module.default || module)
 
   let head = []
